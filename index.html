@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A simple browser-based speed reading tool.">
+  <title>Modern Speed Reader</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <button
+        id="setup-toggle"
+        class="setup-toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="setup-controls"
+        aria-label="Hide text and speed controls"
+        title="Hide text and speed controls"
+      >
+        <span id="setup-toggle-icon" class="setup-toggle-icon" aria-hidden="true"></span>
+      </button>
+      <h1>Modern Speed Reader</h1>
+    </header>
+
+    <div id="setup-controls">
+      <section class="panel input-panel" aria-label="Reading text">
+        <div
+          id="text-input"
+          class="text-input"
+          contenteditable="true"
+          role="textbox"
+          aria-label="Text to speed read"
+          aria-multiline="true"
+          aria-describedby="character-count"
+          data-placeholder="Paste your text"
+          spellcheck="true"
+        ></div>
+        <p id="character-count" class="character-count">0 / 1000</p>
+      </section>
+
+      <section class="panel settings-panel" aria-label="Reading speed">
+        <div class="slider-wrap">
+          <input
+            id="wpm-slider"
+            type="range"
+            min="100"
+            max="1000"
+            step="25"
+            value="300"
+            aria-label="Reading speed in words per minute"
+          >
+          <div class="slider-labels" aria-hidden="true">
+            <span>100</span>
+            <span>1000</span>
+          </div>
+          <div class="pace-status" aria-live="polite">
+            <output id="wpm-output" class="wpm-output" for="wpm-slider">300 WPM</output>
+            <span aria-hidden="true">·</span>
+            <span id="pace-label" class="pace-label">Proficient</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel reader-panel" aria-label="Speed reader">
+      <div class="section-heading">
+        <p id="reader-progress" class="reader-progress">Ready</p>
+      </div>
+
+      <div class="word-display" aria-live="polite" aria-atomic="true">
+        <span id="display-word">Your words appear here</span>
+      </div>
+
+      <button id="play-button" class="play-button" type="button" disabled>
+        <span id="button-icon" aria-hidden="true">▶</span>
+        <span id="button-label">Play</span>
+      </button>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
