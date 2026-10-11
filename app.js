@@ -1,6 +1,6 @@
-import { SpeedReaderModel } from "./js/model.js";
-import { SpeedReaderView } from "./js/view.js";
-import { SpeedReaderController } from "./js/controller.js";
+import { SpeedReaderModel } from "./js/model.js?v=2";
+import { SpeedReaderView } from "./js/view.js?v=2";
+import { SpeedReaderController } from "./js/controller.js?v=2";
 
 const model = new SpeedReaderModel();
 const view = new SpeedReaderView();
