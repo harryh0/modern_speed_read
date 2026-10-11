@@ -1,6 +1,13 @@
-import { SpeedReaderModel } from "./js/model.js?v=2";
-import { SpeedReaderView } from "./js/view.js?v=2";
-import { SpeedReaderController } from "./js/controller.js?v=2";
+const version = new URL(import.meta.url).searchParams.get("v");
+const [
+  { SpeedReaderModel },
+  { SpeedReaderView },
+  { SpeedReaderController }
+] = await Promise.all([
+  import(`./js/model.js?v=${version}`),
+  import(`./js/view.js?v=${version}`),
+  import(`./js/controller.js?v=${version}`)
+]);
 
 const model = new SpeedReaderModel();
 const view = new SpeedReaderView();
