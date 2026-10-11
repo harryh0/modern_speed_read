@@ -43,41 +43,60 @@
 
       <section class="panel settings-panel" aria-label="Reading speed">
         <div class="slider-wrap">
-          <input
-            id="wpm-slider"
-            type="range"
-            min="100"
-            max="1000"
-            step="25"
-            value="300"
-            aria-label="Reading speed in words per minute"
-          >
-          <div class="slider-labels" aria-hidden="true">
-            <span>100</span>
-            <span>1000</span>
+          <div id="wpm-control" class="wpm-control">
+            <output id="wpm-output" class="wpm-output" for="wpm-slider">300</output>
+            <input
+              id="wpm-slider"
+              type="range"
+              min="100"
+              max="1000"
+              step="25"
+              value="300"
+              aria-label="Reading speed in words per minute"
+            >
           </div>
           <div class="pace-status" aria-live="polite">
-            <output id="wpm-output" class="wpm-output" for="wpm-slider">300 WPM</output>
-            <span aria-hidden="true">·</span>
             <span id="pace-label" class="pace-label">Proficient</span>
+          </div>
+          <div id="chunk-controls" class="chunk-controls" hidden>
+            <div class="chunk-heading">
+              <label for="chunk-slider">Chunk size</label>
+              <output id="chunk-output" for="chunk-slider">1 word</output>
+            </div>
+            <input
+              id="chunk-slider"
+              class="chunk-slider"
+              type="range"
+              min="1"
+              max="1"
+              step="1"
+              value="1"
+            >
           </div>
         </div>
       </section>
     </div>
 
     <section class="panel reader-panel" aria-label="Speed reader">
-      <div class="section-heading">
-        <p id="reader-progress" class="reader-progress">Ready</p>
+      <div class="reader-toolbar">
+        <button
+          id="play-button"
+          class="play-button"
+          type="button"
+          aria-label="Play"
+          title="Play"
+          disabled
+        >
+          <span id="button-icon" aria-hidden="true">▶</span>
+          <span id="button-label" class="visually-hidden">Play</span>
+        </button>
       </div>
 
-      <div class="word-display" aria-live="polite" aria-atomic="true">
-        <span id="display-word">Your words appear here</span>
+      <div class="word-display">
+        <span id="display-word" aria-live="polite" aria-atomic="true">
+          Your words appear here
+        </span>
       </div>
-
-      <button id="play-button" class="play-button" type="button" disabled>
-        <span id="button-icon" aria-hidden="true">▶</span>
-        <span id="button-label">Play</span>
-      </button>
     </section>
   </main>
 

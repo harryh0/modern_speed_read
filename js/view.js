@@ -1,3 +1,10 @@
+const PLAYBACK_KEYS = new Set(["Enter", " "]);
+const DISPLAY_FONT_SCALE = {
+  minimumRem: 2.4,
+  maximumRem: 6.4,
+  viewportRatio: 0.1
+};
+
 function requireElement(selector) {
   const element = document.querySelector(selector);
 
@@ -8,6 +15,24 @@ function requireElement(selector) {
   return element;
 }
 
+function calculateSliderProgress(value, minimum, maximum) {
+  if (minimum === maximum) {
+    return 100;
+  }
+
+  return ((value - minimum) / (maximum - minimum)) * 100;
+}
+
+function formatWordCount(count) {
+  return `${count} ${count === 1 ? "word" : "words"}`;
+}
+
+function isInteractiveElement(target) {
+  return target instanceof HTMLElement
+    && (target.isContentEditable
+      || target.matches("input, textarea, select, button"));
+}
+
 export class SpeedReaderView {
   constructor() {
     this.setupToggle = requireElement("#setup-toggle");
@@ -15,14 +40,23 @@ export class SpeedReaderView {
     this.setupControls = requireElement("#setup-controls");
     this.textInput = requireElement("#text-input");
     this.characterCount = requireElement("#character-count");
+    this.wpmControl = requireElement("#wpm-control");
     this.wpmSlider = requireElement("#wpm-slider");
     this.wpmOutput = requireElement("#wpm-output");
     this.paceLabel = requireElement("#pace-label");
+    this.chunkControls = requireElement("#chunk-controls");
+    this.chunkSlider = requireElement("#chunk-slider");
+    this.chunkOutput = requireElement("#chunk-output");
     this.displayWord = requireElement("#display-word");
-    this.readerProgress = requireElement("#reader-progress");
     this.playButton = requireElement("#play-button");
     this.buttonIcon = requireElement("#button-icon");
     this.buttonLabel = requireElement("#button-label");
+    this.currentWordCount = 0;
+    this.currentChunkSize = 1;
+
+    window.addEventListener("resize", () => {
+      this.updateDisplayFontSize(this.currentWordCount, this.currentChunkSize);
+    });
   }
 
   getInputText() {
@@ -37,6 +71,10 @@ export class SpeedReaderView {
   placeCaretAtEnd(element) {
     const range = document.createRange();
     const selection = window.getSelection();
+
+    if (!selection) {
+      return;
+    }
 
     range.selectNodeContents(element);
     range.collapse(false);
@@ -56,7 +94,11 @@ export class SpeedReaderView {
 
       const selection = window.getSelection();
 
-      if (!selection.rangeCount || !this.textInput.contains(selection.anchorNode)) {
+      if (
+        !selection
+        || !selection.rangeCount
+        || !this.textInput.contains(selection.anchorNode)
+      ) {
         return;
       }
 
@@ -82,8 +124,30 @@ export class SpeedReaderView {
     });
   }
 
+  bindChunkSizeChange(handler) {
+    this.chunkSlider.addEventListener("input", () => {
+      handler(Number(this.chunkSlider.value));
+    });
+  }
+
   bindPlayToggle(handler) {
     this.playButton.addEventListener("click", handler);
+  }
+
+  bindPlaybackKeyboard(handler) {
+    document.addEventListener("keydown", (event) => {
+      if (
+        !PLAYBACK_KEYS.has(event.key)
+        || event.repeat
+        || isInteractiveElement(event.target)
+        || this.playButton.disabled
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      handler();
+    });
   }
 
   bindSetupToggle() {
@@ -127,18 +191,67 @@ export class SpeedReaderView {
     this.characterCount.textContent = `${length} / ${maximum}`;
   }
 
-  updateSlider(wpm, pace) {
+  updateWpmControl(wpm, pace) {
     const min = Number(this.wpmSlider.min);
     const max = Number(this.wpmSlider.max);
-    const progress = ((wpm - min) / (max - min)) * 100;
+    const progress = calculateSliderProgress(wpm, min, max);
 
     this.wpmSlider.value = String(wpm);
+    this.wpmControl.style.setProperty("--slider-progress", `${progress}%`);
     this.wpmSlider.style.setProperty("--slider-progress", `${progress}%`);
     this.wpmSlider.style.setProperty("--slider-color", pace.color);
     this.paceLabel.style.setProperty("--slider-color", pace.color);
-    this.wpmOutput.value = `${wpm} WPM`;
-    this.wpmOutput.textContent = `${wpm} WPM`;
+    this.wpmOutput.value = String(wpm);
     this.paceLabel.textContent = pace.name;
+  }
+
+  updateChunkControl(wordCount, chunkSize) {
+    this.currentWordCount = wordCount;
+    this.currentChunkSize = chunkSize;
+    this.chunkControls.hidden = wordCount === 0;
+    this.updateDisplayFontSize(wordCount, chunkSize);
+
+    if (wordCount === 0) {
+      return;
+    }
+
+    const progress = calculateSliderProgress(chunkSize, 1, wordCount);
+
+    this.chunkSlider.max = String(wordCount);
+    this.chunkSlider.value = String(chunkSize);
+    this.chunkSlider.style.setProperty("--slider-progress", `${progress}%`);
+    this.chunkOutput.value = formatWordCount(chunkSize);
+  }
+
+  updateDisplayFontSize(wordCount, chunkSize) {
+    if (wordCount === 0) {
+      this.displayWord.style.removeProperty("--display-font-size");
+      return;
+    }
+
+    const rootFontSize = Number.parseFloat(
+      window.getComputedStyle(document.documentElement).fontSize
+    );
+    const inputFontSize = Number.parseFloat(
+      window.getComputedStyle(this.textInput).fontSize
+    );
+    const maximumFontSize = Math.min(
+      Math.max(
+        window.innerWidth * DISPLAY_FONT_SCALE.viewportRatio,
+        rootFontSize * DISPLAY_FONT_SCALE.minimumRem
+      ),
+      rootFontSize * DISPLAY_FONT_SCALE.maximumRem
+    );
+    const scaleProgress = wordCount === 1
+      ? 1
+      : Math.log(chunkSize) / Math.log(wordCount);
+    const displayFontSize =
+      maximumFontSize - (maximumFontSize - inputFontSize) * scaleProgress;
+
+    this.displayWord.style.setProperty(
+      "--display-font-size",
+      `${displayFontSize}px`
+    );
   }
 
   setInputEditable(isEditable) {
@@ -148,41 +261,63 @@ export class SpeedReaderView {
   updatePlayButton(label, icon) {
     this.buttonLabel.textContent = label;
     this.buttonIcon.textContent = icon;
+    this.playButton.setAttribute("aria-label", label);
+    this.playButton.title = label;
   }
 
   setPlayButtonDisabled(isDisabled) {
     this.playButton.disabled = isDisabled;
   }
 
-  renderReady(words) {
-    const activeWord = this.textInput.querySelector(".active-word");
-    activeWord?.classList.remove("active-word");
-    activeWord?.removeAttribute("aria-current");
+  renderReady(words, chunkSize) {
+    this.textInput.querySelectorAll(".active-word").forEach((word) => {
+      word.classList.remove("active-word", "focus-word");
+      word.removeAttribute("aria-current");
+    });
 
     if (words.length > 0) {
-      this.displayWord.textContent = words[0].text;
-      this.readerProgress.textContent =
-        `${words.length} ${words.length === 1 ? "word" : "words"} ready`;
+      this.displayWord.textContent =
+        words.slice(0, chunkSize).map((word) => word.text).join(" ");
       return;
     }
 
     this.displayWord.textContent = "Your words appear here";
-    this.readerProgress.textContent = "Ready";
   }
 
-  renderCurrentWord(text, words, currentIndex) {
-    const currentWord = words[currentIndex];
+  renderCurrentChunk(text, words, currentIndex, chunkSize, focusedIndex) {
+    const currentChunk = words.slice(currentIndex, currentIndex + chunkSize);
 
-    if (!currentWord) {
+    if (currentChunk.length === 0) {
       return;
     }
 
-    this.displayWord.textContent = currentWord.text;
-    this.readerProgress.textContent = `Word ${currentIndex + 1} of ${words.length}`;
-    this.renderHighlightedInput(text, words, currentIndex);
+    this.displayWord.textContent = currentChunk.map((word) => word.text).join(" ");
+    this.renderHighlightedInput(
+      text,
+      words,
+      currentIndex,
+      currentChunk.length,
+      focusedIndex
+    );
   }
 
-  renderHighlightedInput(text, words, activeIndex) {
+  renderWordFocus(text, words, activeIndex, activeCount, focusedIndex) {
+    this.renderHighlightedInput(
+      text,
+      words,
+      activeIndex,
+      activeCount,
+      focusedIndex
+    );
+  }
+
+  renderHighlightedInput(
+    text,
+    words,
+    activeIndex,
+    activeCount,
+    focusedIndex
+  ) {
     const fragment = document.createDocumentFragment();
     let cursor = 0;
 
@@ -194,9 +329,13 @@ export class SpeedReaderView {
       const wordElement = document.createElement("span");
       wordElement.textContent = text.slice(word.start, word.end);
 
-      if (index === activeIndex) {
+      if (index >= activeIndex && index < activeIndex + activeCount) {
         wordElement.className = "active-word";
         wordElement.setAttribute("aria-current", "true");
+
+        if (activeCount > 1 && index === focusedIndex) {
+          wordElement.classList.add("focus-word");
+        }
       }
 
       fragment.append(wordElement);
@@ -208,14 +347,5 @@ export class SpeedReaderView {
     }
 
     this.textInput.replaceChildren(fragment);
-
-    this.textInput
-      .querySelector(".active-word")
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }
-
-  renderComplete(wordCount) {
-    this.readerProgress.textContent =
-      `Complete · ${wordCount} ${wordCount === 1 ? "word" : "words"}`;
   }
 }
