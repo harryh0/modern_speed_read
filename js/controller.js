@@ -9,10 +9,12 @@ export class SpeedReaderController {
     this.view.bindTextInput((text) => this.handleTextInput(text));
     this.view.bindPaste(this.model.maxCharacters);
     this.view.bindWpmChange((wpm) => this.handleWpmChange(wpm));
+    this.view.bindChunkSizeChange((size) => this.handleChunkSizeChange(size));
     this.view.bindPlayToggle(() => this.handlePlayToggle());
+    this.view.bindPlaybackKeyboard(() => this.handlePlayToggle());
     this.view.bindSetupToggle();
 
-    this.view.updateSlider(this.model.wpm, this.model.pace);
+    this.view.updateWpmControl(this.model.wpm, this.model.pace);
     this.handleTextInput(this.view.getInputText());
   }
 
@@ -26,18 +28,37 @@ export class SpeedReaderController {
     }
 
     this.view.updateCharacterCount(normalizedText.length, this.model.maxCharacters);
+    this.view.updateChunkControl(this.model.wordCount, this.model.chunkSize);
     this.view.setPlayButtonDisabled(!this.model.hasWords);
     this.view.updatePlayButton("Play", "▶");
-    this.view.renderReady(this.model.words);
+    this.view.renderReady(this.model.words, this.model.chunkSize);
   }
 
   handleWpmChange(wpm) {
     this.model.setWpm(wpm);
-    this.view.updateSlider(this.model.wpm, this.model.pace);
+    this.view.updateWpmControl(this.model.wpm, this.model.pace);
 
     if (this.model.isPlaying) {
-      this.scheduleNextWord();
+      this.scheduleNextPlaybackStep();
     }
+  }
+
+  handleChunkSizeChange(chunkSize) {
+    this.model.setChunkSize(chunkSize);
+    this.view.updateChunkControl(this.model.wordCount, this.model.chunkSize);
+
+    if (this.model.isPlaying) {
+      this.renderCurrentChunk();
+      this.scheduleNextPlaybackStep();
+      return;
+    }
+
+    if (this.model.isPaused) {
+      this.renderCurrentChunk();
+      return;
+    }
+
+    this.view.renderReady(this.model.words, this.model.chunkSize);
   }
 
   handlePlayToggle() {
@@ -56,8 +77,8 @@ export class SpeedReaderController {
 
     this.view.setInputEditable(false);
     this.view.updatePlayButton("Pause", "Ⅱ");
-    this.renderCurrentWord();
-    this.scheduleNextWord();
+    this.renderCurrentChunk();
+    this.scheduleNextPlaybackStep();
   }
 
   pausePlayback() {
@@ -71,29 +92,46 @@ export class SpeedReaderController {
     this.clearTimer();
     this.model.completePlayback();
     this.view.setInputEditable(true);
-    this.view.renderComplete(this.model.words.length);
     this.view.updatePlayButton("Replay", "↻");
   }
 
-  renderCurrentWord() {
-    this.view.renderCurrentWord(
+  renderCurrentChunk() {
+    this.view.renderCurrentChunk(
       this.model.text,
       this.model.words,
-      this.model.currentIndex
+      this.model.currentIndex,
+      this.model.chunkSize,
+      this.model.focusedIndex
     );
   }
 
-  scheduleNextWord() {
+  renderWordFocus() {
+    this.view.renderWordFocus(
+      this.model.text,
+      this.model.words,
+      this.model.currentIndex,
+      this.model.currentChunk.length,
+      this.model.focusedIndex
+    );
+  }
+
+  scheduleNextPlaybackStep() {
     this.clearTimer();
 
     this.timerId = window.setTimeout(() => {
-      if (!this.model.advanceWord()) {
+      if (this.model.advanceFocus()) {
+        this.renderWordFocus();
+        this.scheduleNextPlaybackStep();
+        return;
+      }
+
+      if (!this.model.advanceChunk()) {
         this.finishPlayback();
         return;
       }
 
-      this.renderCurrentWord();
-      this.scheduleNextWord();
+      this.renderCurrentChunk();
+      this.scheduleNextPlaybackStep();
     }, this.model.wordDelay);
   }
 
